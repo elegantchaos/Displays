@@ -34,12 +34,22 @@ public struct Display: Equatable {
         }
     }
     
+    public var name: String {
+        let names = ioInfo()?[kDisplayProductName] as? [String: String]
+        let name = (names?["en_US"]) ?? names?.values.first
+        return name ?? "Display \(id)"
+    }
+    
     public var modes: [CGDisplayMode] {
         if let cgModes = CGDisplayCopyAllDisplayModes(id, nil), let modes = cgModes as? Array<CGDisplayMode> {
             return modes
         }
         
         return []
+    }
+    
+    public var isMain: Bool {
+        return CGDisplayIsMain(id) != 0
     }
     
     public static var main: Display {
@@ -66,4 +76,33 @@ public struct Display: Equatable {
     }
     
 }
+
+fileprivate extension Display {
+    func ioInfo() -> NSDictionary? {
+        var service: io_iterator_t = 0
+        IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("IODisplayConnect"), &service)
+        let vendorToMatch = CGDisplayVendorNumber(id)
+        let productToMatch = CGDisplayModelNumber(id)
+        let serialToMatch = CGDisplaySerialNumber(id)
+        repeat {
+            let serv = IOIteratorNext(service)
+            if serv == 0 {
+                break
+            }
+            if let dict = IODisplayCreateInfoDictionary(serv, IOOptionBits(kIODisplayOnlyPreferredName)) {
+                let info = dict.takeRetainedValue() as NSDictionary
+                if
+                    let vendor = info[kDisplayVendorID] as? Int32, vendor == vendorToMatch,
+                    let model = info[kDisplayProductID] as? Int32, model == productToMatch,
+                    ((info[kDisplaySerialNumber] as? Int32) ?? 0) == serialToMatch
+                {
+                    return info
+                }
+            }
+        } while true
+        
+        return nil
+    }
+}
+
 #endif
