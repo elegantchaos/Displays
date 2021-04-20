@@ -24,3 +24,13 @@ final class DisplaysTests: XCTestCase {
         }
     }
 }
+
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+final class AppKitDisplaysTests: XCTestCase {
+    func testName() {
+        for display in Display.active {
+            XCTAssertEqual(display.name, NSScreen.main?.localizedName)
+        }
+    }
+}
+#endif

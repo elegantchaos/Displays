@@ -9,6 +9,7 @@ import Foundation
 
 public struct Display: Equatable {
     let id: CGDirectDisplayID
+    let index: Int
     
     public func mirror(to display: Display) {
         var token: CGDisplayConfigRef?
@@ -34,12 +35,6 @@ public struct Display: Equatable {
         }
     }
     
-    public var name: String {
-        let names = ioInfo()?[kDisplayProductName] as? [String: String]
-        let name = (names?["en_US"]) ?? names?.values.first
-        return name ?? "Display \(id)"
-    }
-    
     public var modes: [CGDisplayMode] {
         if let cgModes = CGDisplayCopyAllDisplayModes(id, nil), let modes = cgModes as? Array<CGDisplayMode> {
             return modes
@@ -53,7 +48,7 @@ public struct Display: Equatable {
     }
     
     public static var main: Display {
-        return Display(id: CGMainDisplayID())
+        return Display(id: CGMainDisplayID(), index: 0)
     }
     
     public static var active: [Display] {
@@ -66,7 +61,7 @@ public struct Display: Equatable {
             if CGGetActiveDisplayList(displayCount, displays, &displayCount) == CGError.success {
                 var result: [Display] = []
                 for i in 0 ..< Int(displayCount) {
-                    result.append(Display(id: displays[i]))
+                    result.append(Display(id: displays[i], index: i))
                 }
                 return result
             }
@@ -75,10 +70,17 @@ public struct Display: Equatable {
         return []
     }
     
+    fileprivate var ioName: String {
+        let names = ioInfo()?[kDisplayProductName] as? [String: String]
+        let name = (names?["en_US"]) ?? names?.values.first
+        return name ?? "Display \(id)"
+    }
+
 }
 
 fileprivate extension Display {
     func ioInfo() -> NSDictionary? {
+        // NB: ioInfo fails for M1 macs; it seems that the IODisplayConnect does not exist on them.
         var service: io_iterator_t = 0
         IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("IODisplayConnect"), &service)
         let vendorToMatch = CGDisplayVendorNumber(id)
@@ -102,6 +104,30 @@ fileprivate extension Display {
         } while true
         
         return nil
+    }
+}
+
+#endif
+
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+import AppKit
+
+extension Display {
+    public var name: String {
+        if #available(macOS 10.15, *) {
+            let screen = NSScreen.screens[index]
+            return screen.localizedName
+        }
+        
+        return ioName
+    }
+}
+
+#else
+
+extension Display {
+    public var name: String {
+        return ioName
     }
 }
 
