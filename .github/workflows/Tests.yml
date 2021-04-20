@@ -9,8 +9,8 @@ on: [push, pull_request]
 
 jobs:
 
-    macOS-swift-50:
-        name: macOS (Swift 5.0)
+    macOS-swift-51:
+        name: macOS (Swift 5.1)
         runs-on: macOS-latest
         steps:
         - name: Checkout
@@ -19,7 +19,7 @@ jobs:
           run: mkdir logs
         - name: Xcode Version
           run: |
-            sudo xcode-select -s /Applications/Xcode_11.2.1.app
+            sudo xcode-select -s /Applications/Xcode_11.3.1.app
             xcodebuild -version
             swift --version
         - name: Swift Version
@@ -29,7 +29,7 @@ jobs:
         - name: Build (Release)
           run: swift build -c release
         - name: Test (Debug)
-          run: swift test --configuration debug  
+          run: swift test --configuration debug  --enable-test-discovery
         - name: Test (Release)
           run: swift test --configuration release -Xswiftc -enable-testing 
         - name: Upload Logs
